@@ -1,0 +1,7 @@
+SpeechRecognition
+pyttsx3
+pyaudio
+psutil
+pywin32
+requests
+Pillow

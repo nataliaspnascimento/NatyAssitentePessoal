@@ -1,0 +1,1 @@
+[2026-04-26 18:04:41] Usuário: que horas são | Naty: O Ollama não parece estar rodando. Por favor, inicie o Ollama no seu computador.
