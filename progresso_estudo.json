@@ -3,12 +3,12 @@
     "nivel": "Iniciante",
     "materias": {
         "Concursos": {
-            "interacoes": 9,
+            "interacoes": 11,
             "acertos": 0
         }
     },
     "simulados_feitos": 0,
-    "total_perguntas": 9,
+    "total_perguntas": 11,
     "historico_estudo": [
         {
             "data": "26/04/2026",
@@ -52,6 +52,16 @@
         },
         {
             "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "27/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "27/04/2026",
             "materia": "Concursos",
             "detalhe": null
         }
