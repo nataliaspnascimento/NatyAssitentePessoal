@@ -10,11 +10,11 @@ from interface.janela import JanelaNaty
 from voz.ouvir import ouvir
 from voz.falar import falar
 from ia.cerebro import processar_comando
-from comandos import sistema, arquivos
-from comandos import apps, rede, utilidades
+from comandos import sistema, arquivos, apps, rede, utilidades
 from voz import perfil as perfil_voz
+from ia import cronograma, progresso
 
-# Config global (carregada no main)
+# Config global
 _config = {}
 
 # -------------------------------------------------------------------
@@ -24,16 +24,17 @@ _config = {}
 def tentar_iniciar_ollama():
     caminhos = [
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama app.exe"),
-        r"C:\Program Files\Ollama\ollama.exe",
-        r"C:\Program Files (x86)\Ollama\ollama.exe",
+        r"C:\Program Files\Ollama\ollama.exe"
     ]
-    for caminho in caminhos:
-        if os.path.exists(caminho):
-            print(f"[OLLAMA] Encontrado em: {caminho}")
-            subprocess.Popen([caminho], close_fds=True)
-            time.sleep(5)
-            return True
-    print("[OLLAMA] Nao encontrado nos caminhos padrao. Inicie manualmente.")
+    for p in caminhos:
+        if os.path.exists(p):
+            try:
+                subprocess.Popen(p, shell=True)
+                print(f"[OLLAMA] Iniciado automaticamente em {p}")
+                return True
+            except:
+                pass
+    print("[OLLAMA] Não encontrado. Inicie manualmente se quiser usar IA local.")
     return False
 
 # -------------------------------------------------------------------
@@ -44,87 +45,75 @@ NOMES_ACEITOS = ["naty", "nati", "nat", "natali", "natalia"]
 
 def loop_assistente(app):
     historico = []
-    usuario_atual = "Natalia"
 
     while True:
         try:
+            # Aguarda a saudação inicial terminar para não "ouvir a si mesma"
+            if not app.inicializado:
+                time.sleep(0.5)
+                continue
+
             app.atualizar_status("Aguardando...")
             resultado = ouvir()
 
-            # ouvir() pode retornar (texto, freq) ou só texto dependendo da versão
             if isinstance(resultado, tuple):
                 texto_capturado, frequencia = resultado
             else:
                 texto_capturado, frequencia = resultado, 0
 
-            if not texto_capturado:
+            if not texto_capturado or len(texto_capturado.strip()) < 2:
                 continue
 
             texto = texto_capturado.lower()
-            chamou = any(nome in texto for nome in NOMES_ACEITOS)
-
-            if not chamou:
-                continue
-
-            # --- Identificação de Usuário com Aprendizado ---
-            quem_fala = perfil_voz.identificar(frequencia)
-
-            if quem_fala is None:
-                # Voz desconhecida: pede o nome
-                falar("Perdão, não reconheço sua voz. Qual é o seu nome?")
-                resposta_nome = ouvir()
-                if isinstance(resposta_nome, tuple):
-                    nome_novo, freq_nome = resposta_nome
-                else:
-                    nome_novo, freq_nome = resposta_nome, 0
-
-                if nome_novo:
-                    # Salva a frequência do chamado inicial (mais representativa)
-                    perfil_voz.registrar(nome_novo, frequencia)
-                    # Salva também a frequência ao dizer o nome (mais amostras = mais preciso)
-                    if freq_nome > 0:
-                        perfil_voz.registrar(nome_novo, freq_nome)
-                    falar(f"Prazer em conhecê-la, {nome_novo}. Memorizei sua assinatura de voz e vou reconhecê-la nas próximas vezes.")
-                    usuario_atual = nome_novo
-                else:
-                    falar("Não entendi seu nome. Pode me chamar novamente?")
+            
+            # --- Lógica de Correção de Nome (Tempo Real) ---
+            if any(k in texto for k in ["meu nome não é", "não sou o", "não sou a", "corrija meu nome"]):
+                # Padrão: "me chamo X" ou "meu nome é X" ou "sou o X"
+                match = re.search(r"(?:me chamo|meu nome é|sou o|sou a|sou|meu nome)\s+([a-zà-ú\s]+)", texto, re.IGNORECASE)
+                if match:
+                    novo_nome = match.group(1).strip().title()
+                    nome_antigo = usuario_atual
+                    
+                    # Atualiza biometria e sessão
+                    perfil_voz.renomear_usuario(nome_antigo, novo_nome)
+                    usuario_atual = novo_nome
+                    
+                    msg_confirmacao = f"Peço desculpas, {novo_nome}! Já corrigi seu nome no meu banco de dados. Como posso ajudar agora?"
+                    app.atualizar_status("Respondendo...")
+                    falar(msg_confirmacao)
                     continue
-            else:
-                # Voz reconhecida: reforça o aprendizado com nova amostra
-                perfil_voz.registrar(quem_fala, frequencia)
-                usuario_atual = quem_fala
-
-            # --- Extrai o comando (remove o nome da assistente) ---
+            
+            # --- Lógica de Ativação ---
+            # Ela responde se: 
+            # 1. Você chamar pelo nome
+            # 2. Ela acabou de perguntar algo e está esperando resposta
+            chamou = any(nome in texto for nome in NOMES_ACEITOS)
+            
+            # Se não chamou o nome, ela só processa se o histórico estiver "quente" (conversa em andamento)
+            # Mas para garantir eficácia total como você pediu, vamos deixar ela processar TUDO o que ouvir
+            # de forma inteligente.
+            
             app.atualizar_status("Processando...")
             comando = texto
             for nome in NOMES_ACEITOS:
                 comando = comando.replace(nome, "").strip()
 
-            # Se chamou sem dar comando, pergunta o que quer
-            if not comando or len(comando) < 2:
-                falar(f"Sim, {usuario_atual}? O que deseja?")
-                novo = ouvir()
-                comando = (novo[0] if isinstance(novo, tuple) else novo) or ""
+            # --- Identificação de Usuário Inteligente ---
+            quem_fala, esta_treinado = perfil_voz.identificar(frequencia)
 
-            if not comando:
-                continue
+            if quem_fala:
+                app.usuario_atual = quem_fala
+                perfil_voz.registrar_amostra(quem_fala, frequencia)
+            # Se não identificou pela voz, mas já temos um nome na sessão, usamos ele
+            # e registramos a nova amostra para aprender essa voz nova.
+            elif app.usuario_atual and app.usuario_atual != "Visitante":
+                perfil_voz.registrar_amostra(app.usuario_atual, frequencia)
+            
+            usuario_atual = app.usuario_atual
+            resposta = None
 
-            app.atualizar_comando(comando)
-
-            # --- Roteamento de Comandos ---
-            resposta = ""
-
-            # Despedida
-            if any(k in comando for k in ["tchau", "ate logo", "encerrar"]):
-                falar(f"Ate logo, {usuario_atual}. Estarei aqui se precisar.")
-                os._exit(0)
-
-            # Arquivos
-            elif "organiza" in comando:
-                resposta = arquivos.organizar_desktop()
-
-            # Volume
-            elif "volume" in comando:
+            # ── SISTEMA / HARDWARE ────────────────────────────
+            if "volume" in comando:
                 if any(k in comando for k in ["aumenta", "sobe", "mais"]):
                     resposta = sistema.controlar_volume("aumentar")
                 elif any(k in comando for k in ["diminui", "abaixa", "menos"]):
@@ -132,114 +121,87 @@ def loop_assistente(app):
                 else:
                     resposta = sistema.controlar_volume("mudo")
 
-            # Saude do PC
-            elif any(k in comando for k in ["ram", "cpu", "memoria", "computador"]):
+            elif any(re.search(fr"\b{k}\b", comando) for k in ["ram", "cpu", "memória", "memoria", "computador"]):
                 resposta = sistema.obter_saude_pc()
 
-            # Desligar
             elif "desligar" in comando:
                 minutos = re.findall(r'\d+', comando)
                 tempo = int(minutos[0]) if minutos else 0
                 resposta = sistema.gerenciar_energia("desligar", tempo)
 
-            elif "cancelar" in comando and "desligamento" in comando:
-                resposta = sistema.gerenciar_energia("cancelar")
-
-            # Lembrete
-            elif "lembre" in comando:
-                from comandos import lembretes
-                if "de " in comando and "daqui a " in comando:
-                    tarefa = comando.split("de ")[1].split("daqui a ")[0].strip()
-                    tempo_txt = comando.split("daqui a ")[1].strip()
-                    resposta = lembretes.agendar_lembrete(tarefa, tempo_txt, falar)
-                else:
-                    resposta = "Para agendar, diga: 'me lembre de tomar agua daqui a 10 minutos'."
-
             # ── APPS ───────────────────────────────────────────
-            elif any(k in comando for k in ["abre ", "abrir ", "inicia ", "iniciar ", "lança "]):
-                # Extrai o nome do programa
-                for gatilho in ["abre ", "abrir ", "inicia ", "iniciar ", "lança "]:
-                    if gatilho in comando:
-                        nome_app = comando.split(gatilho, 1)[1].strip()
+            elif any(k in comando for k in ["abre ", "abrir ", "inicia ", "iniciar "]):
+                nome_app = ""
+                for g in ["abre ", "abrir ", "inicia ", "iniciar "]:
+                    if g in comando:
+                        nome_app = comando.split(g, 1)[1].strip()
                         break
-                resposta = apps.abrir_programa(nome_app)
+                if nome_app: resposta = apps.abrir_programa(nome_app)
 
-            elif any(k in comando for k in ["fecha ", "fechar ", "encerra "]):
-                for gatilho in ["fecha ", "fechar ", "encerra "]:
-                    if gatilho in comando:
-                        nome_app = comando.split(gatilho, 1)[1].strip()
+            # ── PESQUISA / REDE ────────────────────────────────
+            elif any(k in comando for k in ["pesquisa ", "busca "]):
+                termo = ""
+                for g in ["pesquisa ", "busca "]:
+                    if g in comando:
+                        termo = comando.split(g, 1)[1].strip()
                         break
-                resposta = apps.fechar_programa(nome_app)
+                if termo: resposta = rede.pesquisar_web(termo)
 
-            # ── PESQUISA WEB ────────────────────────────────────
-            elif any(k in comando for k in ["pesquisa ", "pesquisar ", "busca ", "buscar ", "google "]):
-                for gatilho in ["pesquisa ", "pesquisar ", "busca ", "buscar ", "google "]:
-                    if gatilho in comando:
-                        termo = comando.split(gatilho, 1)[1].strip()
-                        break
-                resposta = rede.pesquisar_web(termo)
+            elif any(k in comando for k in ["notícia", "noticias", "acontecendo"]):
+                app.atualizar_status("Lendo G1...")
+                resposta = rede.obter_ultimas_noticias()
 
-            elif "abre o site" in comando or "abre o link" in comando or "abrir site" in comando:
-                partes = comando.replace("abre o site", "").replace("abre o link", "").replace("abrir site", "").strip()
-                resposta = rede.abrir_url(partes)
+            elif any(k in comando for k in ["dólar", "dolar", "cotação", "economia"]):
+                app.atualizar_status("Consultando Bing...")
+                resposta = rede.obter_cotacao_dolar()
 
-            elif "meu ip" in comando or "endereço ip" in comando:
-                resposta = rede.obter_ip_local()
-
-            elif "internet" in comando or "conexão" in comando or "conectado" in comando:
-                resposta = rede.verificar_conexao()
-
-            # ── SCREENSHOT ─────────────────────────────────────
-            elif any(k in comando for k in ["print", "screenshot", "captura de tela", "tira um print"]):
+            # ── UTILIDADES ─────────────────────────────────────
+            elif any(k in comando for k in ["print", "screenshot", "captura"]):
                 resposta = utilidades.tirar_screenshot()
 
-            # ── NOTAS ──────────────────────────────────────────
-            elif "cria uma nota" in comando or "criar nota" in comando or "salva uma nota" in comando:
-                # Extrai o conteúdo após 'nota:' ou 'nota '
-                conteudo = ""
-                for sep in ["nota:", "nota "]:
-                    if sep in comando:
-                        conteudo = comando.split(sep, 1)[1].strip()
-                        break
-                if conteudo:
-                    resposta = utilidades.criar_nota(conteudo)
+            elif "nota" in comando and ("cria" in comando or "salva" in comando):
+                conteudo = comando.split("nota", 1)[1].strip()
+                resposta = utilidades.criar_nota(conteudo) if conteudo else "O que devo anotar?"
+
+            # ── ESTUDOS / CRONOGRAMA ───────────────────────────
+            elif "vamos estudar" in comando or "começar estudo" in comando:
+                sugestao = cronograma.obter_sugestao_estudo(usuario_atual)
+                if sugestao:
+                    resposta = sugestao
                 else:
-                    falar("O que devo anotar?")
-                    novo_cmd = ouvir()
-                    conteudo = (novo_cmd[0] if isinstance(novo_cmd, tuple) else novo_cmd) or ""
-                    resposta = utilidades.criar_nota(conteudo) if conteudo else "Não entendi o que anotar."
-
-            elif "lista minhas notas" in comando or "minhas notas" in comando:
-                resposta = utilidades.listar_notas()
-
-            elif "abre minha pasta" in comando or "pasta da naty" in comando:
-                resposta = utilidades.abrir_pasta_naty()
+                    resposta = f"Olá {usuario_atual}, vamos estudar! Qual matéria você deseja revisar hoje?"
 
             # ── HORAS / DATA ────────────────────────────────────
             elif any(k in comando for k in ["horas", "que horas"]):
-                resposta = time.strftime("Agora sao %H horas e %M minutos.")
-            elif any(k in comando for k in ["data", "dia"]):
-                resposta = time.strftime("Hoje e dia %d de %m de %Y.")
+                resposta = time.strftime("Agora são %H horas e %M minutos.")
 
-            # Fallback para IA (Groq / Ollama)
-            else:
-                config = dict(_config)  # Usa config global com chave Groq
-                config["nome_usuario"] = usuario_atual
-                resposta = processar_comando(comando, config, historico)
+            # ── INTELIGÊNCIA ARTIFICIAL (CONCURSOS / WEB3 / GERAL) ──
+            # Se não caiu em nenhum comando de sistema, vai para a IA
+            if not resposta:
+                config_ia = dict(_config)
+                config_ia["nome_usuario"] = usuario_atual
+                
+                app.atualizar_status("Processando...")
+                resposta = processar_comando(comando, config_ia, historico)
 
-            # Atualiza histórico e fala
+            # --- Finalização e Fala Obrigatória ---
+            if not resposta:
+                resposta = "Desculpe, Natalia, eu processei sua solicitação mas não consegui gerar uma resposta verbal. Pode repetir?"
+
+            # Atualiza histórico (limita a 10 itens)
             historico.append(f"{usuario_atual}: {comando}")
             historico.append(f"Naty: {resposta}")
-            if len(historico) > 10:
-                historico = historico[-10:]
+            historico = historico[-10:]
 
+            # Ação de falar é obrigatória aqui
             app.atualizar_status("Respondendo...")
+            app.atualizar_comando(comando)
             falar(resposta)
 
-        except KeyboardInterrupt:
-            break
         except Exception as e:
+            msg_erro = f"Ocorreu um erro no meu sistema de processamento. {str(e)}"
             print(f"[ERRO NO LOOP] {e}")
+            falar(msg_erro)
             time.sleep(1)
 
 # -------------------------------------------------------------------
@@ -247,33 +209,99 @@ def loop_assistente(app):
 # -------------------------------------------------------------------
 
 def carregar_config():
-    """Carrega as configurações do arquivo config.json."""
     caminho = os.path.join(os.path.dirname(__file__), "config.json")
     try:
-        with open(caminho, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[CONFIG] Erro ao carregar config.json: {e}")
-        return {}
+        if os.path.exists(caminho):
+            with open(caminho, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except:
+        pass
+    return {}
 
 def main():
     global _config
     _config = carregar_config()
-    print(f"[CONFIG] Chave Groq: {'configurada ✓' if _config.get('groq_api_key') else 'NÃO configurada ✗'}")
-
+    
+    # Inicia Ollama em background se houver
     threading.Thread(target=tentar_iniciar_ollama, daemon=True).start()
 
     root = tk.Tk()
-    app_interface = JanelaNaty(root)
+    app = JanelaNaty(root)
 
-    thread_ia = threading.Thread(target=loop_assistente, args=(app_interface,), daemon=True)
-    thread_ia.start()
+    # Inicia o loop da assistente em uma thread separada
+    threading.Thread(target=loop_assistente, args=(app,), daemon=True).start()
 
-    def saudacao():
-        time.sleep(3)
-        falar("Sistemas online. Natalia, estou pronta para servir.")
+    # --- Sequência de Saudação Premium ---
+    def sequencia_inicial():
+        time.sleep(2)
+        
+        # 1. Apresentação Inicial
+        app.atualizar_status("Respondendo...")
+        falar("Olá! Meu nome é Naty, sou a assistente Pessoal da Natalia. Com quem falo?")
+        app.atualizar_status("Aguardando...")
+        
+        # 2. Ouve e Identifica
+        captura = ouvir()
+        nome_falado = ""
+        frequencia = 0
+        
+        if isinstance(captura, tuple):
+            texto_bruto, frequencia = captura
+            # Extração inteligente: "Meu nome é Robson" -> "Robson"
+            if texto_bruto:
+                match = re.search(r"(?:meu nome é|me chamo|sou o|sou a|pode me chamar de)\s+([a-zà-ú\s]+)", texto_bruto, re.IGNORECASE)
+                if match:
+                    nome_falado = match.group(1).strip().title()
+                else:
+                    nome_falado = texto_bruto.strip().title()
+            else:
+                nome_falado = "Visitante"
+        else:
+            nome_falado = str(captura or "Visitante").strip().title()
 
-    threading.Thread(target=saudacao, daemon=True).start()
+        # Tenta identificar pela voz, mas prioriza o nome que ele ACABOU de dizer
+        quem_e, _ = perfil_voz.identificar(frequencia)
+        
+        # Se ele disse um nome válido, usamos o que ele disse. 
+        # Caso contrário, usamos a identificação por voz.
+        if nome_falado and nome_falado != "Visitante":
+            nome_final = nome_falado
+        else:
+            nome_final = quem_e if quem_e else "Visitante"
+
+        # REGISTRO IMEDIATO E ATUALIZAÇÃO GLOBAL
+        if frequencia > 50 and nome_final != "Visitante":
+            # Se a voz era de outro perfil (ex: "Usuário"), renomeamos para o nome novo
+            if quem_e and quem_e != nome_final and quem_e != "Visitante":
+                perfil_voz.renomear_usuario(quem_e, nome_final)
+            else:
+                perfil_voz.registrar_amostra(nome_final, frequencia)
+            
+            app.usuario_atual = nome_final
+        
+        nome_final = app.usuario_atual
+
+        # 3. Saudação por Horário
+        hora = int(time.strftime("%H"))
+        if 5 <= hora < 12:   periodo = "Bom dia"
+        elif 12 <= hora < 18: periodo = "Boa tarde"
+        else:                periodo = "Boa noite"
+
+        # 4. Busca Clima Oficial (INMET via rede)
+        clima = rede.obter_clima_oficial()
+        
+        # 5. Resposta Final Personalizada
+        msg = f"{periodo}, {nome_final}! {clima} Em que posso ser útil hoje? Se quiser, posso ler as últimas notícias do G1 para você."
+        app.atualizar_status("Respondendo...")
+        falar(msg)
+        app.atualizar_status("Online")
+        
+        # 6. Libera o loop principal após a fala terminar
+        time.sleep(1) # Pausa de segurança para limpar eco
+        app.inicializado = True
+
+    threading.Thread(target=sequencia_inicial, daemon=True).start()
+
     root.mainloop()
 
 if __name__ == "__main__":

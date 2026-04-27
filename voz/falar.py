@@ -9,6 +9,15 @@ _lock = threading.Lock()
 # Voz neural da Microsoft (fluida e natural)
 VOZ = "pt-BR-FranciscaNeural"
 
+def _limpar_texto(texto):
+    """Remove caracteres especiais que prejudicam a fluidez da fala."""
+    import re
+    # Remove símbolos como & * _ + ( ) " "
+    texto_limpo = re.sub(r'[&*_+()"]', '', texto)
+    # Remove espaços extras
+    texto_limpo = re.sub(r'\s+', ' ', texto_limpo).strip()
+    return texto_limpo
+
 async def _gerar_audio_async(texto, caminho):
     import edge_tts
     communicate = edge_tts.Communicate(texto, VOZ, rate="+5%", volume="+10%")
@@ -18,6 +27,7 @@ def falar(texto):
     """Fala com a voz neural da Microsoft (Francisca - pt-BR).
     Fluida, natural e sem sotaque robótico."""
     print(f"Naty diz: {texto}")
+    texto = _limpar_texto(texto)
 
     with _lock:
         caminho_mp3 = None

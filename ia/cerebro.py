@@ -17,23 +17,23 @@ Regras gerais:
 # PROMPT ESPECIALIZADO — CONCURSOS PÚBLICOS
 # ---------------------------------------------------------------
 
-PROMPT_CONCURSOS = """Você é a Naty, professora particular especialista em concursos públicos brasileiros.
-Você domina com profundidade:
-- **Direito Constitucional**: CF/88, princípios fundamentais, direitos e garantias, organização do Estado, poderes, controle de constitucionalidade.
-- **Direito Tributário**: Sistema tributário nacional, impostos, taxas, contribuições, ICMS, ISS, IR, CTN, obrigação tributária, crédito tributário, lançamento, extinção, exclusão.
-- **Direito Administrativo**: Administração direta e indireta, atos administrativos, licitação (Lei 14.133/21), contratos, servidores públicos, improbidade, controle da administração.
-- **Contabilidade para Concursos**: Balanço patrimonial, DRE, patrimônio líquido, fatos contábeis, variações patrimoniais, lei 6.404/76, NBC, regime de caixa vs. competência, SIAFI.
-- **Português**: Interpretação de texto, gramática, ortografia (Acordo Ortográfico), morfologia, sintaxe, concordância nominal e verbal, regência, crase, pontuação, redação oficial.
-- **Raciocínio Lógico e Matemática**: Proposições, conectivos, tabelas-verdade, silogismos, conjuntos, porcentagem, juros simples e compostos, regra de três, probabilidade, sequências, raciocínio analítico.
-- **Informática para Concursos**: Windows 10/11, pacote Office (Word, Excel, PowerPoint), Internet (HTTP, HTTPS, navegadores), redes (TCP/IP, DNS, DHCP), segurança da informação, hardware, sistemas operacionais, nuvem, backup.
+PROMPT_CONCURSOS = """Você é a Naty, Mentora Sênior de alta performance para concursos de elite (Receita Federal, SEFAZ-CE, TJ-CE e Auditoria Fiscal).
+Seu tom é motivador, extremamente técnico e estratégico. Você não apenas ensina a lei, você ensina como a FGV e o Cebraspe tentam enganar o candidato.
+Você é especialista em:
+- **Legislação Tributária**: ICMS (Lei Kandir), ISS, IPI, Imposto de Renda e Aduaneiro (foco Receita/SEFAZ).
+- **Contabilidade Avançada**: CPCs, Auditoria, Fluxo de Caixa, Consolidação.
+- **Direito Público e Privado**: Foco em jurisprudência atualizada do STF e STJ.
+- **Raciocínio Lógico e Estatística**: Essenciais para Auditoria.
 
-Modo de resposta para perguntas de concurso:
-1. Explique o conceito de forma clara e direta.
-2. Dê um exemplo prático ou jurisprudência relevante quando útil.
-3. Se for uma questão de prova, responda no estilo: "A resposta correta é [X], porque..."
-4. Se for estudo de tema, estruture com: Conceito → Fundamento Legal → Exemplo → Dica de Prova.
-5. Sempre que possível, cite artigos de lei ou súmulas.
-Trate a usuária como uma aluna inteligente que quer entender e não apenas memorizar."""
+Diretrizes de Resposta:
+1. Explicação Técnica Sênior (profunda) e fundamentada (Artigos da CF/88, CP, CC, CTN).
+2. "A Visão da Banca": Como a FGV/Cebraspe cobra isso (pegadinhas).
+3. "Aplicação Prática": Exemplo real de auditoria ou caso jurídico.
+4. "Mnemônico de Memorização" e Dicas de Ouro.
+5. Estrutura: Conceito -> Base Legal -> Jurisprudência -> Dica de Prova.
+6. Desafio: Termine com uma pergunta de fixação para a aluna.
+
+Você está treinando a Natalia para ser aprovada entre os primeiros colocados. Seja extremamente eficiente e profissional."""
 
 # ---------------------------------------------------------------
 # PROMPT ESPECIALIZADO — WEB3 E SMART CONTRACTS
@@ -66,6 +66,9 @@ PALAVRAS_CONCURSO = [
     "tributário", "tributo", "imposto", "taxa", "icms", "iss", "ir ", "ipi",
     "administrativo", "licitação", "pregão", "ato administrativo", "autarquia",
     "servidor público", "cargo", "estabilidade", "improbidade",
+    "civil", "lindb", "negócio jurídico", "contratos", "sucessões", "família",
+    "penal", "crime", "homicídio", "furto", "roubo", "pena", "dolo", "culpa",
+    "imputabilidade", "excludente", "ilicitude",
     # Contabilidade
     "balanço", "patrimonial", "ativo", "passivo", "patrimônio líquido",
     "demonstração", "resultado", "dre", "receita", "despesa", "débito", "crédito",
@@ -103,6 +106,8 @@ def _e_pergunta_web3(comando):
 # PROCESSAMENTO PRINCIPAL
 # ---------------------------------------------------------------
 
+from ia import progresso
+
 def processar_comando(comando, config, historico=None):
     if historico is None:
         historico = []
@@ -110,9 +115,12 @@ def processar_comando(comando, config, historico=None):
     nome_usuario = config.get("nome_usuario", "Natalia")
 
     # Escolhe o prompt correto baseado no tema
-    if _e_pergunta_concurso(comando):
+    tema_concurso = _e_pergunta_concurso(comando)
+    if tema_concurso:
         prompt_sistema = PROMPT_CONCURSOS
-        print(f"[IA] Modo: Professora de Concursos")
+        print(f"[IA] Modo: Mentoria Sênior Concursos")
+        # Registra no banco de dados de estudo
+        progresso.registrar_estudo("Concursos")
     elif _e_pergunta_web3(comando):
         prompt_sistema = PROMPT_WEB3
         print(f"[IA] Modo: Especialista Web3")
@@ -148,11 +156,13 @@ def _processar_groq(comando, nome_usuario, historico, config, prompt_sistema):
 
     for item in historico[-6:]:
         if ":" in item:
-            papel, conteudo = item.split(":", 1)
-            if papel.strip() == nome_usuario:
-                mensagens.append({"role": "user", "content": conteudo.strip()})
-            elif papel.strip() == "Naty":
-                mensagens.append({"role": "assistant", "content": conteudo.strip()})
+            partes = item.split(":", 1)
+            if len(partes) == 2:
+                papel, conteudo = partes
+                if papel.strip() == nome_usuario:
+                    mensagens.append({"role": "user", "content": conteudo.strip()})
+                elif papel.strip() == "Naty":
+                    mensagens.append({"role": "assistant", "content": conteudo.strip()})
 
     mensagens.append({"role": "user", "content": f"{nome_usuario}: {comando}"})
 

@@ -1,0 +1,59 @@
+{
+    "usuario": "Natalia",
+    "nivel": "Iniciante",
+    "materias": {
+        "Concursos": {
+            "interacoes": 9,
+            "acertos": 0
+        }
+    },
+    "simulados_feitos": 0,
+    "total_perguntas": 9,
+    "historico_estudo": [
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        },
+        {
+            "data": "26/04/2026",
+            "materia": "Concursos",
+            "detalhe": null
+        }
+    ]
+}
