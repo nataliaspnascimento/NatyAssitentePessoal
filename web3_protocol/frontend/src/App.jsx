@@ -16,6 +16,7 @@ function App() {
   const [rewards, setRewards] = useState("0");
   const [loading, setLoading] = useState(false);
   const [stakeAmount, setStakeAmount] = useState("");
+  const [proposalDesc, setProposalDesc] = useState("");
   const [showTeleprompter, setShowTeleprompter] = useState(false);
 
   const teleprompterText = [
@@ -156,33 +157,25 @@ function App() {
     <div className="container">
       <header className="header">
         <div className="logo">NATY PROTOCOL</div>
-        <div style={{display: 'flex', gap: '10px'}}>
-          <button className="btn btn-outline" onClick={() => setShowTeleprompter(!showTeleprompter)}>
-            {showTeleprompter ? "Fechar Script" : "Abrir Teleprompter"}
-          </button>
-          <button className="btn btn-outline" onClick={handleRequestTokens} disabled={loading || !account}>
-            Pedir 100 NATY
-          </button>
-          <button className="btn" onClick={connectWallet}>
-            {account ? `${account.substring(0, 6)}...${account.substring(38)}` : (
-              <> <Wallet size={18} style={{marginRight: '8px', verticalAlign: 'middle'}}/> Conectar Carteira </>
-            )}
+        <div style={{display: 'flex', gap: '15px', alignItems: 'center', justifyContent: 'flex-end', flex: 1}}>
+          {account && (
+            <button className="btn btn-outline" onClick={handleRequestTokens} disabled={loading} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', borderRadius: '20px' }}>
+              Pedir 100 NATY
+            </button>
+          )}
+          <button onClick={connectWallet} style={{ 
+            display: 'flex', alignItems: 'center', gap: '10px', 
+            background: account ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', 
+            color: account ? '#10b981' : '#f43f5e', 
+            border: `1px solid ${account ? '#10b981' : '#f43f5e'}`,
+            padding: '0.6rem 1.2rem', fontSize: '0.95rem', borderRadius: '30px',
+            cursor: 'pointer', fontWeight: 'bold', transition: '0.3s'
+          }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: account ? '#10b981' : '#f43f5e', boxShadow: `0 0 10px ${account ? '#10b981' : '#f43f5e'}` }}></div>
+            {account ? `Conectado: ${account.substring(0, 6)}...${account.substring(38)}` : "Não Conectado (Clique aqui)"}
           </button>
         </div>
       </header>
-
-      {showTeleprompter && (
-        <div className="glass-card animate-pulse" style={{position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', width: '80%', zIndex: 1000, border: '2px solid var(--secondary)', background: 'rgba(0,0,0,0.9)'}}>
-          <h4 style={{color: var('--secondary'), marginBottom: '10px'}}>📺 Teleprompter de Apresentação</h4>
-          <div style={{height: '100px', overflow: 'hidden', textAlign: 'center'}}>
-             <div className="scrolling-text" style={{fontSize: '1.5rem', fontWeight: 'bold'}}>
-                {teleprompterText.map((line, i) => (
-                  <p key={i} style={{margin: '10px 0'}}>{line}</p>
-                ))}
-             </div>
-          </div>
-        </div>
-      )}
 
       <section className="glass-card" style={{marginBottom: '3rem', textAlign: 'center', background: 'linear-gradient(rgba(30,41,59,0.7), rgba(139,92,246,0.1))'}}>
         <div className="badge">Fase 2: Avançada | Sepolia Testnet</div>

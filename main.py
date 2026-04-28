@@ -10,7 +10,7 @@ from interface.janela import JanelaNaty
 from voz.ouvir import ouvir
 from voz.falar import falar
 from ia.cerebro import processar_comando
-from comandos import sistema, arquivos, apps, rede, utilidades
+from comandos import sistema, arquivos, apps, rede, utilidades, apresentacao_web3
 from voz import perfil as perfil_voz
 from ia import cronograma, progresso
 
@@ -174,6 +174,11 @@ def loop_assistente(app):
             # ── HORAS / DATA ────────────────────────────────────
             elif any(k in comando for k in ["horas", "que horas"]):
                 resposta = time.strftime("Agora são %H horas e %M minutos.")
+
+            # ── APRESENTAÇÃO WEB3 ────────────────────────────────────
+            elif all(k in comando for k in ["apresente", "relatorio", "natyweb3"]) or "relatório técnico natyweb3" in comando or "apresente o projeto" in comando:
+                app.atualizar_status("Apresentando Projeto...")
+                resposta = apresentacao_web3.apresentar()
 
             # ── INTELIGÊNCIA ARTIFICIAL (CONCURSOS / WEB3 / GERAL) ──
             # Se não caiu em nenhum comando de sistema, vai para a IA

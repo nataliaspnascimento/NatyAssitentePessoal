@@ -34,17 +34,18 @@ npm run dev
 ```
 Acesse: `http://localhost:5174`
 
-### 3. Iniciar a Assistente Naty (Opcional para vídeo)
+### 3. Iniciar a Assistente Naty
+Basta utilizar o arquivo na raiz do projeto:
 ```bash
-pip install -r requirements.txt
-python web3_protocol/naty_apresentacao.py
+./INICIAR_NATY.bat
 ```
-*Diga: "Naty, fale sobre o projeto" para iniciar a explicação por voz.*
+*Diga: "Naty, apresente o relatório técnico NatyWeb3" para a Naty começar a explicar por voz.*
 
 ## 📽️ Guia para Apresentação
-1. Abra o Frontend e clique em **"Abrir Teleprompter"** para ter o script na tela.
-2. Inicie a gravação e dê o comando de voz para a Naty.
-3. Demonstre o fluxo: **Pedir 100 NATY -> Mintar NFT -> Fazer Stake -> Criar Proposta.**
+1. Ao rodar o script `.bat`, duas abas abrirão no seu navegador: O **Frontend (dApp)** e o **Teleprompter Studio**.
+2. Abra o **Studio** em um segundo monitor (ou deixe no fundo) para ler o roteiro, gravar a tela e acompanhar os comandos.
+3. No vídeo, inicie a gravação (direto no Studio ou no OBS) e dê o comando de voz para a Naty.
+4. Enquanto ela fala, alterne para a aba do Frontend e demonstre o fluxo: **Pedir 100 NATY -> Mintar NFT -> Fazer Stake -> Criar Proposta.**
 
 ---
 Desenvolvido por Natália Nascimento em parceria com NATY Assistente.
